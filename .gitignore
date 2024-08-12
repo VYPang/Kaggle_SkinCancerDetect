@@ -1,0 +1,10 @@
+data/cifar-10-batches-py/
+data/FashionMNIST/
+data/MNIST/
+data/stl10_binary/
+data/cifar-10-python.tar.gz
+data/stl10_binary.tar.gz
+data\MNIST\__pycache__\dataLoading.cpython-311.pyc
+**/__pycache__/
+
+ckpt/
