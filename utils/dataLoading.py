@@ -6,30 +6,44 @@ from io import BytesIO
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import h5py
+from torch.utils.data import WeightedRandomSampler
+from tqdm import tqdm
 
 class ISICDataset(Dataset):
     def __init__(self, df, file_hdf, conf, valid=False):
         self.df = df
+        self.conf = conf
         self.fp_hdf = h5py.File(file_hdf, mode="r")
         self.isic_ids = df['isic_id'].values
         self.targets = df['target'].values
         self.img_size = conf.img_size
+        self.mean = conf.mean
+        self.std = conf.std
         self.valid = valid
-        self.obtain_transforms()
-    
+        self.transforms = self.obtain_transforms()
+        if not valid:
+            self.sampler = self.obtain_WeightedRamdomSampler()
+
+    def obtain_WeightedRamdomSampler(self):
+        class_count = self.df["target"].value_counts().to_dict()
+        total = sum(class_count.values())
+        class_weights = {k: total/v for k, v in class_count.items()}
+        sample_weights = [class_weights[i] for i in self.targets]
+        return WeightedRandomSampler(sample_weights, self.conf.train_sample, replacement=True)
+
     def obtain_transforms(self):
         if self.valid:
-            self.transforms = A.Compose([
+            transforms = A.Compose([
                 A.Resize(self.img_size, self.img_size),
                 A.Normalize(
-                        mean=[0.485, 0.456, 0.406], 
-                        std=[0.229, 0.224, 0.225], 
+                        mean=self.mean, 
+                        std=self.std, 
                         max_pixel_value=255.0, 
                         p=1.0
                     ),
                 ToTensorV2()], p=1.)
         else:
-            self.transforms = A.Compose([
+            transforms = A.Compose([
                 A.Resize(self.img_size, self.img_size),
                 A.RandomRotate90(p=0.5),
                 A.Flip(p=0.5),
@@ -50,12 +64,13 @@ class ISICDataset(Dataset):
                         p=0.5
                     ),
                 A.Normalize(
-                        mean=[0.485, 0.456, 0.406], 
-                        std=[0.229, 0.224, 0.225], 
+                        mean=self.mean, 
+                        std=self.std, 
                         max_pixel_value=255.0, 
                         p=1.0
                     ),
                 ToTensorV2()], p=1.)
+        return transforms
         
     def __len__(self):
         return len(self.isic_ids)
@@ -82,8 +97,8 @@ if __name__ == "__main__":
 
     config = OmegaConf.load(config_path)
     train_df = pd.read_csv(train_df_path)
-    train_dataset = ISICDataset(train_df, train_hdf_path, config, valid=True)
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, pin_memory=True)
+    train_dataset = ISICDataset(train_df, train_hdf_path, config, valid=False)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, sampler=train_dataset.sampler)
     for data in train_loader:
         image = data["image"]
         # save image
