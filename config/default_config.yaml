@@ -13,6 +13,7 @@ train:
   train_batch_size: 32
   val_batch_size: 16
   n_accumulate: 1
+  save_interval: 10
 optimizer:
   learning_rate: 1e-4
   weight_decay: 1e-6
