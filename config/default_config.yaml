@@ -1,17 +1,22 @@
 seed: 42
-epochs: 50
-img_size: 384
-mean: [0.485, 0.456, 0.406]
-std: [0.229, 0.224, 0.225]
-model_name: efficientnet_b0_ns
-train_sample: 5000 # number of samples used per epoch
-train_batch_size: 32
-valid_batch_size: 64
-learning_rate: 1e-4
-scheduler: 'CosineAnnealingLR'
-min_lr: 1e-6
-T_max: 500
-weight_decay: 1e-6
-fold : 0
-n_fold: 5
-n_accumulate: 1
+dataset:
+  img_size: 384
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  train_sample_size: 5000     # number of samples used per epoch
+  val_split: 0.2              # based on train sample size
+pretrain:
+  model_name: tf_efficientnet_b0
+  checkpoint_path: "tf_efficientnet_b0_aa-827b6e33.pth"
+train:
+  epochs: 50
+  train_batch_size: 32
+  val_batch_size: 16
+  n_accumulate: 1
+optimizer:
+  learning_rate: 1e-4
+  weight_decay: 1e-6
+scheduler:
+  name: 'CosineAnnealingLR'
+  min_lr: 1e-6
+  T_max: 500

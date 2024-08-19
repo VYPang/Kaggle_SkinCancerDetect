@@ -16,9 +16,9 @@ class ISICDataset(Dataset):
         self.fp_hdf = h5py.File(file_hdf, mode="r")
         self.isic_ids = df['isic_id'].values
         self.targets = df['target'].values
-        self.img_size = conf.img_size
-        self.mean = conf.mean
-        self.std = conf.std
+        self.img_size = conf.dataset.img_size
+        self.mean = conf.dataset.mean
+        self.std = conf.dataset.std
         self.valid = valid
         self.transforms = self.obtain_transforms()
         if not valid:
@@ -29,7 +29,7 @@ class ISICDataset(Dataset):
         total = sum(class_count.values())
         class_weights = {k: total/v for k, v in class_count.items()}
         sample_weights = [class_weights[i] for i in self.targets]
-        return WeightedRandomSampler(sample_weights, self.conf.train_sample, replacement=True)
+        return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
 
     def obtain_transforms(self):
         if self.valid:
@@ -80,11 +80,33 @@ class ISICDataset(Dataset):
         img = np.array( Image.open(BytesIO(self.fp_hdf[isic_id][()])) )
         target = self.targets[index]
         img = self.transforms(image=img)["image"]
-            
+
         return {
             'image': img,
             'target': target,
         }
+
+def obtain_dataSet(df, conf, train_hdf_path):
+    if conf.dataset.val_split != 0:
+        val_split = conf.dataset.val_split
+        train_sample_size = conf.dataset.train_sample_size
+        val_size = int(val_split * train_sample_size)
+        target = np.unique(df["target"])
+        # calculate the number of samples for each class
+        class_count = df["target"].value_counts().to_dict()
+        class_weights = {k: round(v/sum(class_count.values()) * val_size) for k, v in class_count.items()}
+        val_idx = []
+        for t in target:
+            df_t = df[df["target"] == t]
+            val_idx.extend(df_t.sample(class_weights[t]).index)
+        val_df = df.loc[val_idx]
+        train_df = df.drop(val_idx)
+        train_dataset = ISICDataset(train_df, train_hdf_path, conf, valid=False)
+        val_dataset = ISICDataset(val_df, train_hdf_path, conf, valid=True)
+    else:
+        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False)
+        val_dataset = None
+    return train_dataset, val_dataset
 
 if __name__ == "__main__":
     import pandas as pd
@@ -97,11 +119,10 @@ if __name__ == "__main__":
 
     config = OmegaConf.load(config_path)
     train_df = pd.read_csv(train_df_path)
-    train_dataset = ISICDataset(train_df, train_hdf_path, config, valid=False)
+    train_dataset, val_dataset = obtain_dataSet(train_df, config, train_hdf_path)
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, sampler=train_dataset.sampler)
     for data in train_loader:
         image = data["image"]
-        # save image
         image = image.squeeze(0).permute(1, 2, 0).numpy() * 255
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         cv2.imwrite("temp.jpg", image)
