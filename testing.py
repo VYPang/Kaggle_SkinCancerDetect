@@ -2,17 +2,19 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-from utils.model import basicCNN
+from utils.dataLoading import obtain_dataSet
+import pandas as pd
+from utils.model import ISICModel
+from utils.seed import set_seed
 import numpy as np
 from omegaconf import OmegaConf
 import matplotlib.pyplot as plt
-import pickle
-from data.dataLoading import testSource
 from sklearn.decomposition import PCA
 import plotly.graph_objects as go
 from sklearn.metrics import ConfusionMatrixDisplay
 
-def testing(model, lossFunction, config, testLoader):
+def testing(model, config, testLoader):
+    lossFunction = nn.BCELoss()
     total_loss = 0
     accurates = 0
     model.eval()
@@ -25,16 +27,15 @@ def testing(model, lossFunction, config, testLoader):
     for batch_idx, batch in enumerate(test_tqdm):
         test_tqdm.set_description(f'Testing')
 
-        x, y, mainSet_idx = batch
-        y = y.to(device)
-        x = x.float().to(device)
-        if len(x.shape) == 3:
-            x = x[:, None, ...]
+        x = batch['image'].to(device, dtype=torch.float)
+        y = batch['target'].to(device, dtype=torch.float)
+        isic_id = batch['isic_id']
+
         output, vector = model(x)
-        vectorRecord[mainSet_idx.cpu().numpy()[0]] = [y.item(), vector.cpu().detach().numpy()[0]]
+        vectorRecord[isic_id.cpu().numpy()[0]] = [y.item(), vector.cpu().detach().numpy()[0]]
 
         # calculate loss
-        loss = lossFunction(output, y)
+        loss = lossFunction(output.squeeze(), y)
         total_loss += loss
 
         # calculate accuracy
@@ -135,26 +136,23 @@ def pcaAnalysis(vectorRecord, config):
     print('pca analysis done!')
 
 if __name__ == "__main__":
-    configPath = 'configuration/config.yaml'
-    modelPath = 'ckpt/CIFAR/vote/final.pt'
-    config = OmegaConf.load(configPath)
+    configPath = 'config/default_config.yaml'
+    modelPath = 'ckpt/2024-08-19_131551/epoch30-0.08259-0.07516.pt'
+    test_df_path = "./data/train-metadata.csv"
+    test_hdf_path = "./data/train-image.hdf5"
 
+    config = OmegaConf.load(configPath)
+    set_seed(config.seed)
+    test_df = pd.read_csv(test_df_path)
+    test_dataset, _ = obtain_dataSet(test_df, config, test_hdf_path, test=True)
+    testLoader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
     else:
         device = torch.device("cpu")
-
-    numClass = len(config.data.classes)
-    shape = config.data.shape
-    model = basicCNN(shape, numClass, test=True).to(device)
-    lossFunction = nn.CrossEntropyLoss()
-    model.load_state_dict(torch.load(modelPath, map_location=device))
-
-    # load dataset
-    testSet = testSource()
-    testLoader = DataLoader(testSet, batch_size=1, shuffle=False)
+    model = torch.load(modelPath, map_location=device)
 
     # test
-    lossRecord, accRecord, countRecord, vectorRecord, confusionMatrix = testing(model, lossFunction, config, testLoader)
+    lossRecord, accRecord, countRecord, vectorRecord, confusionMatrix = testing(model, config, testLoader)
     graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config)
     pcaAnalysis(vectorRecord, config)

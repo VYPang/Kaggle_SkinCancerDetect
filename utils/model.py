@@ -21,10 +21,10 @@ class GeM(nn.Module):
                 ', ' + 'eps=' + str(self.eps) + ')'
 
 class ISICModel(nn.Module):
-    def __init__(self, model_name, num_classes=1, pretrained=True, checkpoint_path=None):
+    def __init__(self, model_name, num_classes=1, pretrained=True, checkpoint_path=None, test=False):
         super(ISICModel, self).__init__()
         self.model = timm.create_model(model_name, pretrained=pretrained, checkpoint_path=checkpoint_path)
-
+        self.test = test
         in_features = self.model.classifier.in_features
         self.model.classifier = nn.Identity()
         self.model.global_pool = nn.Identity()
@@ -35,5 +35,9 @@ class ISICModel(nn.Module):
     def forward(self, images):
         features = self.model(images)
         pooled_features = self.pooling(features).flatten(1)
-        output = self.sigmoid(self.linear(pooled_features))
-        return output
+        linear = self.linear(pooled_features)
+        output = self.sigmoid(linear)
+        if self.test:
+            return output, pooled_features
+        else:
+            return output

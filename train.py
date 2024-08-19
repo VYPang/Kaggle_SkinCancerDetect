@@ -60,8 +60,8 @@ def train(savePath, device, config, trainLoader, valLoader=None):
                 total_val_loss += loss
                 average_val_loss = round((total_val_loss.detach().cpu().numpy()/ (batch_idx + 1)), 5)
                 val_tqdm.set_postfix(val_loss=average_val_loss)
-
-        torch.save(model, savePath + f'/epoch{epoch+1}-{average_loss}-{average_val_loss}.pt')
+        if epoch % config.train.save_interval == 0:
+            torch.save(model.state_dict(), savePath + f'/epoch{epoch+1}-{average_loss}-{average_val_loss}.pt')
     torch.save(model.state_dict(), savePath + f'/final.pt')
 
 def fetch_scheduler(optimizer, config):

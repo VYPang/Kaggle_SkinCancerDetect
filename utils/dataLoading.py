@@ -10,7 +10,7 @@ from torch.utils.data import WeightedRandomSampler
 from tqdm import tqdm
 
 class ISICDataset(Dataset):
-    def __init__(self, df, file_hdf, conf, valid=False):
+    def __init__(self, df, file_hdf, conf, valid=False, test=False):
         self.df = df
         self.conf = conf
         self.fp_hdf = h5py.File(file_hdf, mode="r")
@@ -20,6 +20,7 @@ class ISICDataset(Dataset):
         self.mean = conf.dataset.mean
         self.std = conf.dataset.std
         self.valid = valid
+        self.test = test
         self.transforms = self.obtain_transforms()
         if not valid:
             self.sampler = self.obtain_WeightedRamdomSampler()
@@ -32,7 +33,7 @@ class ISICDataset(Dataset):
         return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
 
     def obtain_transforms(self):
-        if self.valid:
+        if self.valid or self.test:
             transforms = A.Compose([
                 A.Resize(self.img_size, self.img_size),
                 A.Normalize(
@@ -81,13 +82,20 @@ class ISICDataset(Dataset):
         target = self.targets[index]
         img = self.transforms(image=img)["image"]
 
-        return {
-            'image': img,
-            'target': target,
-        }
+        if self.test:
+            return {
+                'image': img,
+                'target': target,
+                'isic_id': isic_id,
+            }
+        else:
+            return {
+                'image': img,
+                'target': target,
+            }
 
-def obtain_dataSet(df, conf, train_hdf_path):
-    if conf.dataset.val_split != 0:
+def obtain_dataSet(df, conf, train_hdf_path, test=False):
+    if conf.dataset.val_split != 0 and not test:
         val_split = conf.dataset.val_split
         train_sample_size = conf.dataset.train_sample_size
         val_size = int(val_split * train_sample_size)
@@ -104,7 +112,7 @@ def obtain_dataSet(df, conf, train_hdf_path):
         train_dataset = ISICDataset(train_df, train_hdf_path, conf, valid=False)
         val_dataset = ISICDataset(val_df, train_hdf_path, conf, valid=True)
     else:
-        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False)
+        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False) if not test else ISICDataset(df, train_hdf_path, conf, test=True)
         val_dataset = None
     return train_dataset, val_dataset
 
