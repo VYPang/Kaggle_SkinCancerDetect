@@ -9,6 +9,11 @@ import h5py
 from torch.utils.data import WeightedRandomSampler
 from tqdm import tqdm
 
+'''
+test與valid區別
+- test sampling不同
+- test 情況下不會對訓練集分成train, val
+'''
 class ISICDataset(Dataset):
     def __init__(self, df, file_hdf, conf, valid=False, test=False):
         self.df = df
@@ -84,17 +89,11 @@ class ISICDataset(Dataset):
         target = self.targets[index]
         img = self.transforms(image=img)["image"]
 
-        if self.test:
-            return {
-                'image': img,
-                'target': target,
-                'isic_id': isic_id,
-            }
-        else:
-            return {
-                'image': img,
-                'target': target,
-            }
+        return {
+            'image': img,
+            'target': target,
+            'isic_id': isic_id,
+        }
 
 def obtain_dataSet(df, conf, train_hdf_path, test=False):
     if conf.dataset.val_split != 0 and not test:
@@ -105,6 +104,10 @@ def obtain_dataSet(df, conf, train_hdf_path, test=False):
         # calculate the number of samples for each class
         class_count = df["target"].value_counts().to_dict()
         class_weights = {k: round(v/sum(class_count.values()) * val_size) for k, v in class_count.items()}
+        # ensure at leat 2
+        for k, v in class_weights.items():
+            if v < 2:
+                class_weights[k] = 2
         val_idx = []
         for t in target:
             df_t = df[df["target"] == t]

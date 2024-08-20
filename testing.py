@@ -153,9 +153,8 @@ if __name__ == "__main__":
     config = OmegaConf.load(configPath)
     set_seed(config.seed)
     test_df = pd.read_csv(test_df_path)
-    test_dataset, _ = obtain_dataSet(test_df, config, test_hdf_path, test=True)
-    # testLoader = DataLoader(test_dataset, batch_size=config.test.batch_size, shuffle=False)
-    testLoader = DataLoader(test_dataset, batch_size=config.test.batch_size, shuffle=False, sampler=test_dataset.sampler) # debug
+    test_dataset, val_dataset = obtain_dataSet(test_df, config, test_hdf_path)
+    valLoader = DataLoader(val_dataset, batch_size=config.test.batch_size, shuffle=False)
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
     else:
@@ -165,6 +164,6 @@ if __name__ == "__main__":
     model.to(device)
 
     # test
-    lossRecord, accRecord, countRecord, vectorRecord, confusionMatrix = testing(model, config, testLoader)
+    lossRecord, accRecord, countRecord, vectorRecord, confusionMatrix = testing(model, config, valLoader)
     graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config)
     pcaAnalysis(vectorRecord, config)

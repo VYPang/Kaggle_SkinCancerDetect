@@ -10,7 +10,7 @@ pretrain:
   model_name: tf_efficientnet_b0
   checkpoint_path: "tf_efficientnet_b0_aa-827b6e33.pth"
 train:
-  epochs: 50
+  epochs: 30
   train_batch_size: 32
   val_batch_size: 16
   n_accumulate: 1
