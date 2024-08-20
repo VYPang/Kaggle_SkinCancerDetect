@@ -16,7 +16,8 @@ train:
   n_accumulate: 1
   save_interval: 10
 test:
-  batch_size: 32
+  batch_size: 64
+  test_sample_size: 50000
 optimizer:
   learning_rate: 1e-4
   weight_decay: 1e-6

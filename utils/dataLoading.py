@@ -29,7 +29,10 @@ class ISICDataset(Dataset):
         total = sum(class_count.values())
         class_weights = {k: total/v for k, v in class_count.items()}
         sample_weights = [class_weights[i] for i in self.targets]
-        return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
+        if self.test:
+            return WeightedRandomSampler(sample_weights, self.conf.test.test_sample_size, replacement=False)
+        else:
+            return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
 
     def obtain_transforms(self):
         if self.valid or self.test:
