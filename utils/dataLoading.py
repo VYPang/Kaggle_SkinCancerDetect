@@ -22,8 +22,7 @@ class ISICDataset(Dataset):
         self.valid = valid
         self.test = test
         self.transforms = self.obtain_transforms()
-        if not valid:
-            self.sampler = self.obtain_WeightedRamdomSampler()
+        self.sampler = self.obtain_WeightedRamdomSampler()
 
     def obtain_WeightedRamdomSampler(self):
         class_count = self.df["target"].value_counts().to_dict()

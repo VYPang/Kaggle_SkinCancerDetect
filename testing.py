@@ -18,10 +18,10 @@ def testing(model, config, testLoader):
     total_loss = 0
     accurates = 0
     model.eval()
-    lossRecord = {i:[] for i in range(10)}
-    accRecord = [0 for _ in range(10)]
-    countRecord = [0 for _ in range(10)]
-    confusionMatrix = np.zeros((10, 10))
+    lossRecord = {0: [], 1: []}
+    accRecord = [0, 0]
+    countRecord = [0, 0]
+    confusionMatrix = np.zeros((2, 2))
     vectorRecord = {}
     test_tqdm = tqdm(testLoader, total=len(testLoader))
     for batch_idx, batch in enumerate(test_tqdm):
@@ -31,38 +31,47 @@ def testing(model, config, testLoader):
         y = batch['target'].to(device, dtype=torch.float)
         isic_id = batch['isic_id']
 
-        output, vector = model(x)
-        vectorRecord[isic_id.cpu().numpy()[0]] = [y.item(), vector.cpu().detach().numpy()[0]]
+        with torch.no_grad():
+            output, vector = model(x)
 
         # calculate loss
-        loss = lossFunction(output.squeeze(), y)
-        total_loss += loss
+        for idx in range(len(isic_id)):
+            loss = lossFunction(output[idx].squeeze(), y[idx].squeeze())
+            lossRecord[int(y[idx].item())].append(loss.item())
+            total_loss += loss.item()
+
+        output = output.squeeze().cpu().numpy()
+        y = y.cpu().numpy().astype(int)
 
         # calculate accuracy
-        _, predicted = torch.max(output, 1)
-        accurates += (predicted == y).sum().item()
+        predicted = (output > 0.5).astype(int)
+        accurates += (predicted == y).sum()
+        # record belonging class
+        count = np.unique(y, return_counts=True)[1]
+        for i in range(len(count)):
+            countRecord[i] += count[i]
 
-        # record performance
-        lossRecord[y.cpu().numpy()[0]].append(loss.item())
-        if predicted == y:
-            accRecord[y.item()] += 1
-        countRecord[y.item()] += 1
-        
-        # confusion matrix
-        confusionMatrix[y.item(), predicted.item()] += 1
-        
-    print(f'Over All Loss: {total_loss/len(testLoader)}')
-    print(f'Over All Accuracy: {accurates/len(testLoader)}')
+        for idx in range(len(isic_id)):
+            vectorRecord[isic_id[idx]] = [y[idx].item(), vector.cpu().detach().numpy()[idx]]
+            if predicted[idx] == y[idx]:
+                accRecord[y[idx]] += 1
+            
+            # confusion matrix
+            confusionMatrix[y[idx], predicted[idx]] += 1
+    
+    total_count = np.array(countRecord).sum()
+    print(f'Over All Loss: {total_loss/total_count}')
+    print(f'Over All Accuracy: {accurates/total_count}')
     print(f'Worst Group Accuracy: {min(accRecord)/countRecord[np.argmin(accRecord)]}')
     return lossRecord, accRecord, countRecord, vectorRecord, confusionMatrix
 
 def graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config):
-    classes = config.data.classes
+    classes = config.dataset.classes
     # plot loss histogram
     all_losses = [loss for losses in lossRecord.values() for loss in losses]
     min_loss = min(all_losses)
     max_loss = max(all_losses)
-    fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(15, 8))
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 8))
     for i, (ax, losses) in enumerate(zip(axes.flat, lossRecord.values())):
         ax.hist(losses, bins=50, range=(min_loss, max_loss))
         ax.set_title(f'Class {classes[i]}')
@@ -87,7 +96,7 @@ def graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config):
 
     # graph confusion matrix
     fig, ax = plt.subplots(figsize=(10, 10))
-    disp = ConfusionMatrixDisplay(confusionMatrix.astype(int), display_labels=classes)
+    disp = ConfusionMatrixDisplay(confusionMatrix.astype(int), display_labels=classes.values())
     disp.plot()
     disp.plot(ax=ax)
     ax.set_title('Confusion Matrix')
@@ -101,24 +110,24 @@ def graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config):
         print(f'{classes[i]} \t(total counts: {countRecord[i]}\taccuracy: {round(accuracy[i], 4)})')
 
 def pcaAnalysis(vectorRecord, config):
-    classes = config.data.classes
-    vectors = np.array([vectorRecord[i][1] for i in range(len(vectorRecord))])
+    classes = config.dataset.classes
+    vectors = np.array([i[1] for i in vectorRecord.values()])
     pca = PCA(n_components=3)
     print('fitting pca...')
     pca.fit(vectors)
 
     # group vectors by class
-    vectorGroup = {i:[] for i in range(10)}
-    mainSetIdx = {i:[] for i in range(10)}
-    for i in range(len(vectorRecord)):
-        vectorGroup[vectorRecord[i][0]].append(vectorRecord[i][1])
-        mainSetIdx[vectorRecord[i][0]].append(i)
+    vectorGroup = {0:[], 1:[]}
+    dataIdx = {0:[], 1:[]}
+    for isic_id, record in vectorRecord.items():
+        vectorGroup[record[0]].append(record[1])
+        dataIdx[record[0]].append(isic_id)
     
     # plot pca
     fig = go.Figure()
     for i in range(len(vectorGroup)):
         data = pca.transform(np.array(vectorGroup[i]))
-        text = [f'mainSetIdx: {idx}' for idx in mainSetIdx[i]]
+        text = [f'dataId: {idx}' for idx in dataIdx[i]]
         fig.add_trace(go.Scatter3d(text=text,
                                     x=data[:, 0],
                                     y=data[:, 1],
@@ -137,7 +146,7 @@ def pcaAnalysis(vectorRecord, config):
 
 if __name__ == "__main__":
     configPath = 'config/default_config.yaml'
-    modelPath = 'ckpt/2024-08-19_131551/epoch30-0.08259-0.07516.pt'
+    modelPath = 'ckpt/2024-08-19_161649/epoch31-0.08709-0.06277.pt'
     test_df_path = "./data/train-metadata.csv"
     test_hdf_path = "./data/train-image.hdf5"
 
@@ -145,12 +154,15 @@ if __name__ == "__main__":
     set_seed(config.seed)
     test_df = pd.read_csv(test_df_path)
     test_dataset, _ = obtain_dataSet(test_df, config, test_hdf_path, test=True)
-    testLoader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+    # testLoader = DataLoader(test_dataset, batch_size=config.test.batch_size, shuffle=False)
+    testLoader = DataLoader(test_dataset, batch_size=config.test.batch_size, shuffle=False, sampler=test_dataset.sampler) # debug
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
     else:
         device = torch.device("cpu")
-    model = torch.load(modelPath, map_location=device)
+    model = ISICModel(config.pretrain.model_name, test=True)
+    model.load_state_dict(torch.load(modelPath))
+    model.to(device)
 
     # test
     lossRecord, accRecord, countRecord, vectorRecord, confusionMatrix = testing(model, config, testLoader)
