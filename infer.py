@@ -146,14 +146,14 @@ def pcaAnalysis(vectorRecord, config):
 
 if __name__ == "__main__":
     configPath = 'config/default_config.yaml'
-    modelPath = 'ckpt/2024-08-19_161649/epoch31-0.08709-0.06277.pt'
-    test_df_path = "./data/train-metadata.csv"
-    test_hdf_path = "./data/train-image.hdf5"
+    modelPath = 'ckpt/2024-08-25_175314/epoch36-0.20367-0.15668.pt'
+    train_df_path = "./data/train-metadata.csv"
+    train_hdf_path = "./data/train-image.hdf5"
 
     config = OmegaConf.load(configPath)
     set_seed(config.seed)
-    test_df = pd.read_csv(test_df_path)
-    test_dataset, val_dataset = obtain_dataSet(test_df, config, test_hdf_path)
+    test_df = pd.read_csv(train_df_path)
+    train_dataset, val_dataset = obtain_dataSet(test_df, config, train_hdf_path)
     valLoader = DataLoader(val_dataset, batch_size=config.test.batch_size, shuffle=False)
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
