@@ -8,25 +8,23 @@ from albumentations.pytorch import ToTensorV2
 import h5py
 from torch.utils.data import WeightedRandomSampler
 from tqdm import tqdm
+import cupy as cp
 
-'''
-test與valid區別
-- test sampling不同
-- test 情況下不會對訓練集分成train, val
-'''
 class ISICDataset(Dataset):
-    def __init__(self, df, file_hdf, conf, valid=False):
+    def __init__(self, df, file_hdf, conf, valid=False, test=False):
         self.df = df
         self.conf = conf
         self.fp_hdf = h5py.File(file_hdf, mode="r")
         self.isic_ids = df['isic_id'].values
-        self.targets = df['target'].values
+        self.test = test
         self.img_size = conf.dataset.img_size
         self.mean = conf.dataset.mean
         self.std = conf.dataset.std
         self.valid = valid
         self.transforms = self.obtain_transforms()
-        self.sampler = self.obtain_WeightedRamdomSampler()
+        if not test:
+            self.targets = df['target'].values
+            self.sampler = self.obtain_WeightedRamdomSampler()
 
     def obtain_WeightedRamdomSampler(self):
         class_count = self.df["target"].value_counts().to_dict()
@@ -75,17 +73,23 @@ class ISICDataset(Dataset):
     
     def __getitem__(self, index):
         isic_id = self.isic_ids[index]
-        img = np.array( Image.open(BytesIO(self.fp_hdf[isic_id][()])) )
-        target = self.targets[index]
+        img = np.array(Image.open(BytesIO(self.fp_hdf[isic_id][()])))
         img = self.transforms(image=img)["image"]
+        if not self.test:
+            target = self.targets[index]
+            return {
+                'image': img,
+                'target': target,
+                'isic_id': isic_id,
+            }
+        else:
+            return {
+                'image': img,
+                'isic_id': isic_id,
+            }
 
-        return {
-            'image': img,
-            'target': target,
-            'isic_id': isic_id,
-        }
-
-def obtain_dataSet(df, conf, train_hdf_path):
+# When test = True, conf.dataset.val_split must be 0
+def obtain_dataSet(df, conf, train_hdf_path, test=False):
     if conf.dataset.val_split != 0:
         val_split = conf.dataset.val_split
         train_sample_size = conf.dataset.train_sample_size
@@ -107,7 +111,7 @@ def obtain_dataSet(df, conf, train_hdf_path):
         train_dataset = ISICDataset(train_df, train_hdf_path, conf, valid=False)
         val_dataset = ISICDataset(val_df, train_hdf_path, conf, valid=True)
     else:
-        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False)
+        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False, test=test)
         val_dataset = None
     return train_dataset, val_dataset
 
