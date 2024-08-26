@@ -78,7 +78,7 @@ def graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config):
         ax.set_xlabel('Loss Value')
         ax.set_ylabel('Frequency')
     plt.subplots_adjust(wspace=0.4, hspace=0.6)
-    plt.savefig('lossHistogram.jpg')
+    plt.savefig('inferResult/lossHistogram.jpg')
     plt.clf()
 
     # plot accuracy histogram
@@ -91,7 +91,7 @@ def graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config):
     ax.set_ylabel('Accuracy')
     ax.set_title('Accuracy per Class')
     plt.tight_layout()
-    plt.savefig('accuracyBar.jpg')
+    plt.savefig('inferResult/accuracyBar.jpg')
     plt.clf()
 
     # graph confusion matrix
@@ -103,7 +103,7 @@ def graphPerf(lossRecord, accRecord, countRecord, confusionMatrix, config):
     ax.set_xlabel('Predicted Label')
     ax.set_ylabel('True Label')
     plt.tight_layout()
-    plt.savefig('confusionMatrix.jpg', dpi=300)
+    plt.savefig('inferResult/confusionMatrix.jpg', dpi=300)
 
     # info printing
     for i in range(len(accRecord)):
@@ -141,7 +141,7 @@ def pcaAnalysis(vectorRecord, config):
         yaxis_title='PC2',
         zaxis_title='PC3'
     ))
-    fig.write_html('pca.html')
+    fig.write_html('inferResult/pca.html')
     print('pca analysis done!')
 
 if __name__ == "__main__":
