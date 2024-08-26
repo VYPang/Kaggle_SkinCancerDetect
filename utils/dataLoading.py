@@ -43,40 +43,40 @@ class ISICDataset(Dataset):
         if self.valid or self.test:
             transforms = A.Compose([
                 A.Resize(self.img_size, self.img_size),
-                A.Normalize(
-                        mean=self.mean, 
-                        std=self.std, 
-                        max_pixel_value=255.0, 
-                        p=1.0
-                    ),
+                A.Normalize(),
+                # A.Normalize(
+                #         mean=self.mean, 
+                #         std=self.std, 
+                #         max_pixel_value=255.0, 
+                #         p=1.0
+                #     ),
                 ToTensorV2()], p=1.)
         else:
             transforms = A.Compose([
+                A.Transpose(p=0.5),
+                A.VerticalFlip(p=0.5),
+                A.HorizontalFlip(p=0.5),
+                A.ColorJitter(brightness=0.2, p=0.5),
+                A.ColorJitter(contrast=0.2, p=0.5),
+                A.OneOf([
+                    A.MotionBlur(blur_limit=5),
+                    A.MedianBlur(blur_limit=5),
+                    A.GaussianBlur(blur_limit=5),
+                    A.GaussNoise(var_limit=(5.0, 30.0)),
+                ], p=0.7),
+
+                A.OneOf([
+                    A.OpticalDistortion(distort_limit=0.05, shift_limit=0.05, interpolation=1, border_mode=4),
+                    A.GridDistortion(num_steps=5, distort_limit=0.3, interpolation=1, border_mode=4),
+                    A.ElasticTransform(alpha=1, sigma=50),
+                ], p=0.7),
+
+                A.CLAHE(clip_limit=4.0, p=0.7),
+                A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=10, p=0.5),
+                A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=0, p=0.85),
                 A.Resize(self.img_size, self.img_size),
-                A.RandomRotate90(p=0.5),
-                A.Flip(p=0.5),
-                A.Downscale(p=0.25),
-                A.ShiftScaleRotate(shift_limit=0.1, 
-                                scale_limit=0.15, 
-                                rotate_limit=60, 
-                                p=0.5),
-                A.HueSaturationValue(
-                        hue_shift_limit=0.2, 
-                        sat_shift_limit=0.2, 
-                        val_shift_limit=0.2, 
-                        p=0.5
-                    ),
-                A.RandomBrightnessContrast(
-                        brightness_limit=(-0.1,0.1), 
-                        contrast_limit=(-0.1, 0.1), 
-                        p=0.5
-                    ),
-                A.Normalize(
-                        mean=self.mean, 
-                        std=self.std, 
-                        max_pixel_value=255.0, 
-                        p=1.0
-                    ),
+                A.CoarseDropout(max_height=int(self.img_size * 0.1), max_width=int(self.img_size * 0.1), max_holes=1, p=0.7),
+                A.Normalize(),
                 ToTensorV2()], p=1.)
         return transforms
         
@@ -106,8 +106,8 @@ def obtain_dataSet(df, conf, train_hdf_path, test=False):
         class_weights = {k: round(v/sum(class_count.values()) * val_size) for k, v in class_count.items()}
         # ensure at leat 2
         for k, v in class_weights.items():
-            if v < 2:
-                class_weights[k] = 2
+            if v < 5:
+                class_weights[k] = 5
         val_idx = []
         for t in target:
             df_t = df[df["target"] == t]
