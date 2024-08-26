@@ -15,7 +15,7 @@ test與valid區別
 - test 情況下不會對訓練集分成train, val
 '''
 class ISICDataset(Dataset):
-    def __init__(self, df, file_hdf, conf, valid=False, test=False):
+    def __init__(self, df, file_hdf, conf, valid=False):
         self.df = df
         self.conf = conf
         self.fp_hdf = h5py.File(file_hdf, mode="r")
@@ -25,7 +25,6 @@ class ISICDataset(Dataset):
         self.mean = conf.dataset.mean
         self.std = conf.dataset.std
         self.valid = valid
-        self.test = test
         self.transforms = self.obtain_transforms()
         self.sampler = self.obtain_WeightedRamdomSampler()
 
@@ -34,22 +33,13 @@ class ISICDataset(Dataset):
         total = sum(class_count.values())
         class_weights = {k: total/v for k, v in class_count.items()}
         sample_weights = [class_weights[i] for i in self.targets]
-        if self.test:
-            return WeightedRandomSampler(sample_weights, self.conf.test.test_sample_size, replacement=False)
-        else:
-            return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
+        return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
 
     def obtain_transforms(self):
-        if self.valid or self.test:
+        if self.valid:
             transforms = A.Compose([
                 A.Resize(self.img_size, self.img_size),
                 A.Normalize(),
-                # A.Normalize(
-                #         mean=self.mean, 
-                #         std=self.std, 
-                #         max_pixel_value=255.0, 
-                #         p=1.0
-                #     ),
                 ToTensorV2()], p=1.)
         else:
             transforms = A.Compose([
@@ -95,8 +85,8 @@ class ISICDataset(Dataset):
             'isic_id': isic_id,
         }
 
-def obtain_dataSet(df, conf, train_hdf_path, test=False):
-    if conf.dataset.val_split != 0 and not test:
+def obtain_dataSet(df, conf, train_hdf_path):
+    if conf.dataset.val_split != 0:
         val_split = conf.dataset.val_split
         train_sample_size = conf.dataset.train_sample_size
         val_size = int(val_split * train_sample_size)
@@ -117,7 +107,7 @@ def obtain_dataSet(df, conf, train_hdf_path, test=False):
         train_dataset = ISICDataset(train_df, train_hdf_path, conf, valid=False)
         val_dataset = ISICDataset(val_df, train_hdf_path, conf, valid=True)
     else:
-        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False) if not test else ISICDataset(df, train_hdf_path, conf, test=True)
+        train_dataset = ISICDataset(df, train_hdf_path, conf, valid=False)
         val_dataset = None
     return train_dataset, val_dataset
 
