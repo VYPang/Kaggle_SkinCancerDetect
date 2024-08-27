@@ -21,7 +21,7 @@ total_mean = np.zeros(3)
 total_std= np.zeros(3)
 img_count = 0
 for isic_id in tqdm(isic_ids, desc="Calculating mean and std"):
-    img = np.array( Image.open(BytesIO(fp_hdf[isic_id][()])) )
+    img = np.array( Image.open(BytesIO(fp_hdf[isic_id][()])) ) / 255.0
     total_mean += np.mean(img, axis=(0, 1))
     total_std += np.std(img, axis=(0, 1))
     img_count += 1
