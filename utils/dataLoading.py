@@ -7,8 +7,6 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import h5py
 from torch.utils.data import WeightedRandomSampler
-from tqdm import tqdm
-import cupy as cp
 
 class ISICDataset(Dataset):
     def __init__(self, df, file_hdf, conf, valid=False, test=False):

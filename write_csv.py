@@ -1,17 +1,11 @@
 import torch
-import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from utils.dataLoading import obtain_dataSet
 import pandas as pd
 from utils.model import ISICModel
 from utils.seed import set_seed
-import numpy as np
 from omegaconf import OmegaConf
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-import plotly.graph_objects as go
-from sklearn.metrics import ConfusionMatrixDisplay
 
 def infer(model, trainLoader, testLoader):
     trainSet_result, testSet_result = {}, {}
