@@ -73,13 +73,13 @@ def train(savePath, device, config, trainLoader, valLoader=None):
                 average_val_loss = total_val_loss.detach().cpu().numpy()/val_dataset_size
                 average_val_auroc = total_val_auroc.detach().cpu().numpy()/val_dataset_size
                 val_tqdm.set_postfix(val_loss=round(average_val_loss, 5), val_auroc=round(average_val_auroc, 5))
-        print('\n')
-        if valLoader != None:
             if average_val_auroc > val_auroc_record:
-                torch.save(model.state_dict(), savePath + f'/val_auroc-{average_auroc}.pt')
+                torch.save(model.state_dict(), savePath + f'/val_auroc-{average_val_auroc}.pt')
+                print(f'Validation auroc improved from {val_auroc_record} to {average_val_auroc}. Model saved.')
                 val_auroc_record = average_val_auroc
         elif (epoch+1) % config.train.save_interval == 0:
             torch.save(model.state_dict(), savePath + f'/epoch{epoch+1}-{average_loss}.pt')
+        print('\n')
     torch.save(model.state_dict(), savePath + f'/final.pt')
     print('Final auc-roc:', average_auroc)
     print('Final loss:', average_loss)
