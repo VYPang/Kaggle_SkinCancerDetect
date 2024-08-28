@@ -35,7 +35,12 @@ class ISICDataset(Dataset):
         if self.valid:
             transforms = A.Compose([
                 A.Resize(self.img_size, self.img_size),
-                A.Normalize(),
+                A.Normalize(
+                    mean=self.mean,
+                    std=self.std,
+                    max_pixel_value=255.0,
+                    p=1.0
+                ),
                 ToTensorV2()], p=1.)
         else:
             transforms = A.Compose([
@@ -59,10 +64,15 @@ class ISICDataset(Dataset):
 
                 A.CLAHE(clip_limit=4.0, p=0.7),
                 A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=10, p=0.5),
-                A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=0, p=0.85),
+                A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.15, rotate_limit=60, border_mode=0, p=0.85),
                 A.Resize(self.img_size, self.img_size),
                 A.CoarseDropout(max_height=int(self.img_size * 0.1), max_width=int(self.img_size * 0.1), max_holes=1, p=0.7),
-                A.Normalize(),
+                A.Normalize(
+                    mean=self.mean,
+                    std=self.std,
+                    max_pixel_value=255.0,
+                    p=1.0
+                ),
                 ToTensorV2()], p=1.)
         return transforms
         
