@@ -23,7 +23,7 @@ def train(savePath, device, config, trainLoader, valLoader=None):
     for epoch in range(epochs):
         # training loop
         total_loss = 0
-        total_aroc = 0
+        total_auroc = 0
         dataset_size = 0
         train_tqdm = tqdm(trainLoader, total=len(trainLoader))
         for batch_idx, batch in enumerate(train_tqdm):
@@ -36,7 +36,7 @@ def train(savePath, device, config, trainLoader, valLoader=None):
 
             output = model(x).squeeze()
             loss = lossFunction(output, y) / config.train.n_accumulate
-            aroc = binary_auroc(output, y)
+            auroc = binary_auroc(output, y)
             loss.backward()
             if (batch_idx + 1) % config.train.n_accumulate == 0:
                 optimizer.step()
@@ -46,16 +46,16 @@ def train(savePath, device, config, trainLoader, valLoader=None):
                     scheduler.step()
 
             total_loss += loss * len(y)
-            total_aroc += aroc * len(y)
+            total_auroc += auroc * len(y)
             dataset_size += len(y)
             average_loss = round((total_loss.detach().cpu().numpy()/dataset_size), 5)
-            average_aroc = round((total_aroc.detach().cpu().numpy()/dataset_size), 5)
-            train_tqdm.set_postfix(train_loss=average_loss, train_aroc=average_aroc)
+            average_auroc = round((total_auroc.detach().cpu().numpy()/dataset_size), 5)
+            train_tqdm.set_postfix(train_loss=average_loss, train_auroc=average_auroc)
 
         # validation loop
         if valLoader != None:
             total_val_loss = 0
-            total_val_aroc = 0
+            total_val_auroc = 0
             val_dataset_size = 0
             val_tqdm = tqdm(valLoader, total=len(valLoader))
             for batch_idx, batch in enumerate(val_tqdm):
@@ -67,13 +67,13 @@ def train(savePath, device, config, trainLoader, valLoader=None):
                     output = model(x).squeeze()
                     loss = lossFunction(output, y) / config.train.n_accumulate
                 total_val_loss += loss * len(y)
-                total_val_aroc += binary_auroc(output, y) * len(y)
+                total_val_auroc += binary_auroc(output, y) * len(y)
                 val_dataset_size += len(y)
                 average_val_loss = round((total_val_loss.detach().cpu().numpy()/val_dataset_size), 5)
-                average_val_aroc = round((total_val_aroc.detach().cpu().numpy()/val_dataset_size), 5)
-                val_tqdm.set_postfix(val_loss=average_val_loss, val_aroc=average_val_aroc)
+                average_val_auroc = round((total_val_auroc.detach().cpu().numpy()/val_dataset_size), 5)
+                val_tqdm.set_postfix(val_loss=average_val_loss, val_auroc=average_val_auroc)
         print('\n')
-        if epoch % config.train.save_interval == 0:
+        if (epoch+1) % config.train.save_interval == 0:
             torch.save(model.state_dict(), savePath + f'/epoch{epoch+1}-{average_loss}.pt')
     torch.save(model.state_dict(), savePath + f'/final.pt')
 
