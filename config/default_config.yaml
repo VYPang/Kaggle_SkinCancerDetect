@@ -3,14 +3,15 @@ dataset:
   img_size: 384
   mean: [0.69830354, 0.52184344, 0.41959074]
   std: [0.22212707, 0.23511315, 0.23065045]
-  train_sample_size: 10000     # number of samples used per epoch
+  train_sample_size: 7000     # number of samples used per epoch
+  max_sampler_weight: 200     # -1 for no limit
   val_split: 0.2              # based on train sample size
   classes: {0: 'benign', 1: 'malignant'}
 pretrain:
   model_name: tf_efficientnet_b0
   checkpoint_path: "tf_efficientnet_b0_aa-827b6e33.pth"
 train:
-  epochs: 50
+  epochs: 100
   train_batch_size: 32
   val_batch_size: 32
   n_accumulate: 1

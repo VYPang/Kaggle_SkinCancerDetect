@@ -28,6 +28,10 @@ class ISICDataset(Dataset):
         class_count = self.df["target"].value_counts().to_dict()
         total = sum(class_count.values())
         class_weights = {k: total/v for k, v in class_count.items()}
+        if self.conf.dataset.max_sampler_weight != -1:
+            for k, v in class_weights.items():
+                if v > self.conf.dataset.max_sampler_weight:
+                    class_weights[k] = self.conf.dataset.max_sampler_weight
         sample_weights = [class_weights[i] for i in self.targets]
         return WeightedRandomSampler(sample_weights, self.conf.dataset.train_sample_size, replacement=True)
 
@@ -43,6 +47,33 @@ class ISICDataset(Dataset):
                 ),
                 ToTensorV2()], p=1.)
         else:
+            # transforms = A.Compose([
+            #     A.Resize(self.img_size, self.img_size),
+            #     A.RandomRotate90(p=0.5),
+            #     A.Flip(p=0.5),
+            #     A.Downscale(p=0.25),
+            #     A.ShiftScaleRotate(shift_limit=0.1, 
+            #                     scale_limit=0.15, 
+            #                     rotate_limit=60, 
+            #                     p=0.5),
+            #     A.HueSaturationValue(
+            #             hue_shift_limit=0.2, 
+            #             sat_shift_limit=0.2, 
+            #             val_shift_limit=0.2, 
+            #             p=0.5
+            #         ),
+            #     A.RandomBrightnessContrast(
+            #             brightness_limit=(-0.1,0.1), 
+            #             contrast_limit=(-0.1, 0.1), 
+            #             p=0.5
+            #         ),
+            #     A.Normalize(
+            #             mean=self.mean,
+            #             std=self.std,
+            #             max_pixel_value=255.0,
+            #             p=1.0
+            #         ),
+            #     ToTensorV2()], p=1.)
             transforms = A.Compose([
                 A.Transpose(p=0.5),
                 A.VerticalFlip(p=0.5),

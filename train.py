@@ -81,8 +81,11 @@ def train(savePath, device, config, trainLoader, valLoader=None):
             torch.save(model.state_dict(), savePath + f'/epoch{epoch+1}-{average_loss}.pt')
         print('\n')
     torch.save(model.state_dict(), savePath + f'/final.pt')
-    print('Final auc-roc:', average_auroc)
-    print('Final loss:', average_loss)
+    print('Final train auc-roc:', average_auroc)
+    print('Final train loss:', average_loss)
+    if valLoader != None:
+        print('Final val auc-roc:', average_val_auroc)
+        print('Final val loss:', average_val_loss)
 
 def fetch_scheduler(optimizer, config):
     if config.scheduler.name == 'CosineAnnealingLR':
